@@ -1,63 +1,90 @@
 import "dotenv/config";
-
-import http from "http"; // Creates a real HTTP server (Socket.io needs this)
-
+import http from "http";
 import { Server } from "socket.io";
+import jwt from "jsonwebtoken";
+import mongoose from "mongoose";
+
 import app from "./app.js";
+import projectModel from "./models/project.model.js";
+import userModel from "./models/user.model.js";
+import Message from "./models/message.model.js";
 
 const port = process.env.PORT || 3000;
-
-// Wrap the Express app inside an HTTP server
-// Client → HTTP Server → Express
 const server = http.createServer(app);
 
-// Attach Socket.io to the same HTTP server
-// Now this server can handle both HTTP requests and WebSocket connections
 const io = new Server(server, {
-    cors: {
-        // Allow the React app to connect to the Socket.io server
-        origin: "http://localhost:5173",
-        credentials: true,
-    },
+  cors: {
+    origin: "http://localhost:5173",
+    credentials: true,
+  },
 });
 
-//middleware which lets only authenticated user to connect with socket.io
-io.use((socket, next) => {
-    try {
-        const token = socket.handshake.auth?.token || socket.handshake.headers.authorization?.split(' ')[1];
-        if (!token) {
-            return next(new Error('Authentication error'))
-        }
+io.use(async (socket, next) => {
+  try {
+    const token =
+      socket.handshake.auth?.token ||
+      socket.handshake.headers.authorization?.split(" ")[1];
 
-        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const projectId = socket.handshake.query?.projectId;
 
-        if (!decoded) {
-            return next(new Error('Authentication error'))
-        }
-
-        socket.user = decoded;
-
-        next();
-
-    } catch (error) {
-        next(error)
+    if (!mongoose.Types.ObjectId.isValid(projectId)) {
+      return next(new Error("Invalid project ID"));
     }
-})
 
-io.on("connection", (socket) => { //whenever a new client connects to the server, this event is triggered
-    console.log("User connected:", socket.id);
+    const project = await projectModel.findById(projectId);
 
-    socket.on("disconnect", () => {
-        console.log("User disconnected:", socket.id);
-    });
+    if (!project) {
+      return next(new Error("Project not found"));
+    }
+
+    if (!token) {
+      return next(new Error("Authentication error"));
+    }
+
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+
+    // Fetch the full user document since the JWT only contains the email
+    const user = await userModel.findOne({ email: decoded.email });
+
+    if (!user) {
+      return next(new Error("User not found"));
+    }
+
+    socket.project = project;
+    socket.user = user;
+
+    next();
+  } catch (error) {
+    next(error);
+  }
 });
 
-// Export io so it can be used anywhere in the backend
-// e.g. io.emit(), io.to(room).emit()
+io.on("connection", (socket) => {
+  console.log("User connected:", socket.id);
+
+  socket.join(socket.project._id.toString());
+
+  socket.on("project-message", async (data) => {
+    const message = await Message.create({
+      project: socket.project._id,
+      sender: socket.user._id,
+      email: socket.user.email,
+      message: data.message,
+    });
+
+    io.to(socket.project._id.toString()).emit("project-message", {
+      ...message.toObject(),
+      timestamp: message.createdAt,
+    });
+  });
+
+  socket.on("disconnect", () => {
+    console.log("User disconnected:", socket.id);
+  });
+});
+
 export { io };
 
-// Start the HTTP server
-// This starts both Express APIs and the Socket.io server
 server.listen(port, () => {
-    console.log(`Server is running on port ${port}`);
+  console.log(`Server is running on port ${port}`);
 });

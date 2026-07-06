@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useContext, useRef } from "react";
 import axiosInstance from "../config/axios";
 import { useParams } from "react-router-dom";
 import {
@@ -8,15 +8,21 @@ import {
     HiOutlineEmojiHappy,
     HiOutlineX,
 } from "react-icons/hi";
-import { initializeSocket, receiveMessage, sendMessage } from "../config/socket";
+import { initializeSocket, receiveMessage, sendMessage, disconnectSocket, } from "../config/socket";
+import { UserContext } from "../context/user.context.jsx";
 
 const Project = () => {
-    const { projectId } = useParams();
 
+    const { projectId } = useParams();
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
     const [project, setProject] = useState(null);
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
     const [email, setEmail] = useState("");
+    const [message, setMessage] = useState("");
+    const { user } = useContext(UserContext);
+    const [messages, setMessages] = useState([]);
+    const messagesContainerRef = useRef(null);
+    console.log(messages);
 
     console.log(projectId);
 
@@ -33,13 +39,59 @@ const Project = () => {
         }
     };
 
-    useEffect(() => {
-        initializeSocket()
+    const fetchMessages = async () => {
+        try {
+            const response = await axiosInstance.get(
+                `/messages/${projectId}`
+            );
 
+            setMessages(response.data.messages);
+        } catch (error) {
+            console.log(error);
+        }
+    };
+
+    function send() {
+        if (!message.trim()) return;
+
+        const newMessage = {
+            message,
+            sender: user._id,
+            email: user.email,
+        };
+
+        sendMessage("project-message", newMessage);
+
+        setMessage("");
+    }
+
+    useEffect(() => {
         if (projectId) {
             fetchProject();
+            fetchMessages();
         }
     }, [projectId]);
+
+    useEffect(() => {
+        if (!project?._id) return;
+
+        initializeSocket(project._id);
+
+        receiveMessage("project-message", (data) => {
+            setMessages((prev) => [...prev, data]);
+        });
+
+        return () => {
+            disconnectSocket();
+        };
+    }, [project]);
+
+    useEffect(() => {
+    if (!messagesContainerRef.current) return;
+
+    messagesContainerRef.current.scrollTop =
+        messagesContainerRef.current.scrollHeight;
+}, [messages]);
 
     const addCollaborator = async () => {
         try {
@@ -108,24 +160,68 @@ const Project = () => {
 
                 {/* Messages */}
 
-                <div className="flex flex-1 items-center justify-center px-8">
+                <div
+    ref={messagesContainerRef}
+    className="flex-1 overflow-y-auto p-5 space-y-3"
+>
+                    {messages.length === 0 ? (
+                        <div className="flex h-full items-center justify-center">
+                            <div className="text-center">
+                                <div className="mb-6 text-6xl">💬</div>
 
-                    <div className="text-center">
+                                <h2 className="text-3xl font-light text-white">
+                                    Start chatting
+                                </h2>
 
-                        <div className="mb-6 text-6xl">
-                            💬
+                                <p className="mt-4 text-gray-500">
+                                    Collaborate with your teammates in real time.
+                                </p>
+                            </div>
                         </div>
+                    ) : (
+                        messages.map((msg, index) => (
+                            <div
+                                key={index}
+                                className={`mb-4 flex ${msg.sender === user._id ? "justify-end" : "justify-start"
+                                    }`}
+                            >
+                                <div
+                                    className={`max-w-[75%] rounded-2xl px-4 py-3 ${msg.sender === user._id
+                                        ? "bg-blue-600 text-white"
+                                        : "bg-[#222] text-white"
+                                        }`}
+                                >
+                                    <p
+                                        className={`mb-2 text-xs font-semibold ${msg.sender === user._id
+                                            ? "text-blue-100"
+                                            : "text-gray-400"
+                                            }`}
+                                    >
+                                        {msg.email.split("@")[0]}
+                                    </p>
 
-                        <h2 className="text-3xl font-light text-white">
-                            Start chatting
-                        </h2>
+                                    <div className="flex items-end justify-between gap-4">
+                                        <p className="break-words text-[15px] leading-relaxed">
+                                            {msg.message}
+                                        </p>
 
-                        <p className="mt-4 text-gray-500">
-                            Collaborate with your teammates in real time.
-                        </p>
-
-                    </div>
-
+                                        <span
+                                            className={`shrink-0 text-[11px] ${msg.sender === user._id
+                                                ? "text-blue-100/70"
+                                                : "text-gray-500"
+                                                }`}
+                                        >
+                                            {new Date(msg.createdAt || msg.timestamp).toLocaleTimeString([], {
+                                                hour: "2-digit",
+                                                minute: "2-digit",
+                                            })}
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+                        ))
+                    )}
+                    
                 </div>
 
                 {/* Message Box */}
@@ -137,6 +233,13 @@ const Project = () => {
                         <input
                             type="text"
                             placeholder="Type a message..."
+                            value={message}
+                            onChange={(e) => setMessage(e.target.value)}
+                            onKeyDown={(e) => {
+                                if (e.key === "Enter") {
+                                    send();
+                                }
+                            }}
                             className="flex-1 bg-transparent text-white placeholder:text-gray-500 outline-none"
                         />
 
@@ -148,7 +251,10 @@ const Project = () => {
                             <HiOutlineEmojiHappy size={22} />
                         </button>
 
-                        <button className="rounded-full bg-blue-600 p-3 text-white shadow-[0_0_20px_rgba(37,99,235,0.35)] transition-all duration-300 hover:scale-105 hover:bg-blue-700 hover:shadow-[0_0_35px_rgba(37,99,235,0.55)]">
+                        <button
+                            onClick={send}
+                            className="rounded-full bg-blue-600 p-3 text-white shadow-[0_0_20px_rgba(37,99,235,0.35)] transition-all duration-300 hover:scale-105 hover:bg-blue-700 hover:shadow-[0_0_35px_rgba(37,99,235,0.55)]"
+                        >
                             <HiOutlinePaperAirplane size={18} />
                         </button>
 
