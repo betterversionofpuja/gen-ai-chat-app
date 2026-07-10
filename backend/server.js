@@ -95,19 +95,24 @@ io.on("connection", (socket) => {
       });
 
       const result = await generateResult(prompt);
+      console.log(result);
 
       // 5. Save Zenith's response
       const aiMessage = await Message.create({
         project: socket.project._id,
         sender: null,
         email: "zenith@ai",
-        message: result,
+        message: result.text,
         isAI: true,
       });
 
       // 6. Broadcast Zenith's response
       io.to(socket.project._id.toString()).emit("project-message", {
         ...aiMessage.toObject(),
+        message: result.text,
+        fileTree: result.fileTree,
+        buildCommand: result.buildCommand,
+        startCommand: result.startCommand,
         timestamp: aiMessage.createdAt,
       });
     } catch (error) {

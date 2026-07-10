@@ -10,6 +10,8 @@ import {
 } from "react-icons/hi";
 import { initializeSocket, receiveMessage, sendMessage, disconnectSocket, } from "../config/socket";
 import { UserContext } from "../context/user.context.jsx";
+import Markdown from 'markdown-to-jsx';
+import Workspace from "../components/Workspace.jsx";
 
 const Project = () => {
 
@@ -23,6 +25,7 @@ const Project = () => {
     const [messages, setMessages] = useState([]);
     const messagesContainerRef = useRef(null);
     const [isZenithThinking, setIsZenithThinking] = useState(false);
+    const [fileTree, setFileTree] = useState({});
     console.log(messages);
 
     console.log(projectId);
@@ -79,12 +82,16 @@ const Project = () => {
         initializeSocket(project._id);
 
         receiveMessage("project-message", (data) => {
-            if (data.isAI) {
-                setIsZenithThinking(false);
-            }
+    if (data.isAI) {
+        setIsZenithThinking(false);
 
-            setMessages((prev) => [...prev, data]);
-        });
+        if (data.fileTree) {
+            setFileTree(data.fileTree);
+        }
+    }
+
+    setMessages((prev) => [...prev, data]);
+});
 
         receiveMessage("zenith-thinking", () => {
             setIsZenithThinking(true);
@@ -212,9 +219,13 @@ const Project = () => {
                                     </p>
 
                                     <div className="flex items-end justify-between gap-4">
-                                        <p className="break-words text-[15px] leading-relaxed">
-                                            {msg.message}
-                                        </p>
+                                        <div className="overflow-x-auto break-words text-[15px] leading-relaxed">
+                                            {msg.isAI ? (
+                                                <Markdown>{msg.message}</Markdown>
+                                            ) : (
+                                                msg.message
+                                            )}
+                                        </div>
 
                                         <span
                                             className={`shrink-0 text-[11px] ${msg.sender === user._id
@@ -292,23 +303,13 @@ const Project = () => {
 
             {/* ================= RIGHT PANEL ================= */}
 
-            <section className="relative flex flex-1 items-center justify-center">
+<section className="relative flex flex-1 overflow-hidden bg-black">
 
-                <div className="absolute right-[-250px] top-[-150px] h-[450px] w-[450px] rounded-full bg-blue-700/10 blur-[180px]" />
+  <div className="absolute right-[-250px] top-[-150px] h-[450px] w-[450px] rounded-full bg-blue-700/10 blur-[180px]" />
 
-                <div className="relative text-center">
+  <Workspace fileTree={fileTree} />
 
-                    <h2 className="text-5xl font-extralight text-white">
-                        Workspace
-                    </h2>
-
-                    <p className="mt-5 text-lg text-gray-500">
-                        AI chat, code editor and preview will appear here.
-                    </p>
-
-                </div>
-
-            </section>
+</section>
 
             {/* ================= COLLABORATORS SIDEBAR ================= */}
 

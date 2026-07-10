@@ -11,5 +11,14 @@ export const generateResult = async (prompt) => {
     contents: `${systemInstruction}\n\nUser: ${prompt}`,
   });
 
-  return response.text;
+  try {
+    return JSON.parse(response.text);
+  } catch {
+    return {
+      text: response.text,
+      fileTree: {},
+      buildCommand: null,
+      startCommand: null,
+    };
+  }
 };
