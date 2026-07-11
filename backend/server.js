@@ -60,6 +60,26 @@ io.use(async (socket, next) => {
   }
 });
 
+function mergeFileTrees(existingTree = {}, newTree = {}) {
+  const merged = { ...existingTree };
+
+  for (const key in newTree) {
+    if (
+      merged[key] &&
+      typeof merged[key] === "object" &&
+      !merged[key].file &&
+      typeof newTree[key] === "object" &&
+      !newTree[key].file
+    ) {
+      merged[key] = mergeFileTrees(merged[key], newTree[key]);
+    } else {
+      merged[key] = newTree[key];
+    }
+  }
+
+  return merged;
+}
+
 io.on("connection", (socket) => {
   console.log("User connected:", socket.id);
 
@@ -94,8 +114,19 @@ io.on("connection", (socket) => {
         isThinking: true,
       });
 
-      const result = await generateResult(prompt);
-      console.log(result);
+      const result = await generateResult({
+        prompt,
+        projectName: socket.project.name,
+        fileTree: socket.project.fileTree,
+      });
+
+      const mergedFileTree = mergeFileTrees(
+        socket.project.fileTree,
+        result.fileTree || {}
+      );
+
+      socket.project.fileTree = mergedFileTree;
+      await socket.project.save();
 
       // 5. Save Zenith's response
       const aiMessage = await Message.create({
@@ -110,7 +141,7 @@ io.on("connection", (socket) => {
       io.to(socket.project._id.toString()).emit("project-message", {
         ...aiMessage.toObject(),
         message: result.text,
-        fileTree: result.fileTree,
+        fileTree: mergedFileTree,
         buildCommand: result.buildCommand,
         startCommand: result.startCommand,
         timestamp: aiMessage.createdAt,

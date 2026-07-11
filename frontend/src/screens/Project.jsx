@@ -37,6 +37,7 @@ const Project = () => {
             );
 
             setProject(response.data.project);
+            setFileTree(response.data.project.fileTree || {}); 
 
         } catch (error) {
             console.log(error);
@@ -69,6 +70,7 @@ const Project = () => {
         setMessage("");
     }
 
+
     useEffect(() => {
         if (projectId) {
             fetchProject();
@@ -76,22 +78,44 @@ const Project = () => {
         }
     }, [projectId]);
 
+    function mergeFileTrees(existingTree = {}, newTree = {}) {
+        const merged = { ...existingTree };
+
+        for (const key in newTree) {
+            if (
+                merged[key] &&
+                typeof merged[key] === "object" &&
+                !merged[key].file &&
+                typeof newTree[key] === "object" &&
+                !newTree[key].file
+            ) {
+                merged[key] = mergeFileTrees(merged[key], newTree[key]);
+            } else {
+                merged[key] = newTree[key];
+            }
+        }
+
+        return merged;
+    }
+
     useEffect(() => {
         if (!project?._id) return;
 
         initializeSocket(project._id);
 
         receiveMessage("project-message", (data) => {
-    if (data.isAI) {
-        setIsZenithThinking(false);
+            if (data.isAI) {
+                setIsZenithThinking(false);
 
-        if (data.fileTree) {
-            setFileTree(data.fileTree);
-        }
-    }
+                if (data.fileTree) {
+                    setFileTree((prev) =>
+                        mergeFileTrees(prev, data.fileTree)
+                    );
+                }
+            }
 
-    setMessages((prev) => [...prev, data]);
-});
+            setMessages((prev) => [...prev, data]);
+        });
 
         receiveMessage("zenith-thinking", () => {
             setIsZenithThinking(true);
@@ -303,13 +327,13 @@ const Project = () => {
 
             {/* ================= RIGHT PANEL ================= */}
 
-<section className="relative flex flex-1 overflow-hidden bg-black">
+            <section className="relative flex flex-1 overflow-hidden bg-black">
 
-  <div className="absolute right-[-250px] top-[-150px] h-[450px] w-[450px] rounded-full bg-blue-700/10 blur-[180px]" />
+                <div className="absolute right-[-250px] top-[-150px] h-[450px] w-[450px] rounded-full bg-blue-700/10 blur-[180px]" />
 
-  <Workspace fileTree={fileTree} />
+                <Workspace fileTree={fileTree} />
 
-</section>
+            </section>
 
             {/* ================= COLLABORATORS SIDEBAR ================= */}
 
