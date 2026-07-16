@@ -2,7 +2,8 @@ import projectModel from '../models/project.model.js';
 import * as projectService from '../services/project.service.js';
 import { validationResult } from 'express-validator';
 import userModel from '../models/user.model.js';
-import { indexChangedFiles } from "../services/file.service.js";
+import { indexChangedFiles,indexProjectFiles, } from "../services/file.service.js";
+
 
 
 export const createProject = async (req, res) => {
@@ -82,6 +83,16 @@ export const getProjectById = async (req, res) => {
   try {
 
     const project = await projectService.getProjectById({ projectId });
+
+    const { File } = await import("../models/file.model.js");
+
+const indexedFiles = await File.countDocuments({
+  project: project._id,
+});
+console.log("Indexed Files:", indexedFiles);
+if (indexedFiles === 0) {
+  await indexProjectFiles(project);
+}
 
     return res.status(200).json({
       project

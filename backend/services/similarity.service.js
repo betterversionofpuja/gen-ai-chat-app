@@ -2,7 +2,7 @@ import { File } from "../models/file.model.js";
 import { generateEmbedding } from "./embedding.service.js";
 
 const TOP_K = 5;
-const SIMILARITY_THRESHOLD = 0.7;
+const SIMILARITY_THRESHOLD = 0;
 
 export const cosineSimilarity = (a, b) => {
   let dot = 0;

@@ -42,3 +42,29 @@ export const indexChangedFiles = async (project, changedFiles) => {
   );
 }
 };
+
+export const indexProjectFiles = async (project) => {
+  console.log("Running initial indexing...");
+  const files = extractFiles(project.fileTree);
+
+  for (const file of files) {
+    if (!file.content.trim()) continue;
+
+    const embedding = await generateEmbedding(file.content);
+
+    await File.findOneAndUpdate(
+      {
+        project: project._id,
+        path: file.path,
+      },
+      {
+        content: file.content,
+        embedding,
+      },
+      {
+        upsert: true,
+        returnDocument: "after",
+      }
+    );
+  }
+};
