@@ -454,7 +454,7 @@ const Project = () => {
                                     minRows={1}
                                     maxRows={6}
                                     value={message}
-                                    placeholder="Ask Zenith..."
+                                    placeholder="Ask @zenith..."
                                     onChange={(e) => setMessage(e.target.value)}
                                     onKeyDown={(e) => {
                                         if (e.key === "Enter" && !e.shiftKey) {
