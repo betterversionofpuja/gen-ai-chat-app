@@ -121,6 +121,8 @@ const Project = () => {
     }, [projectId]);
 
     function mergeFileTrees(existingTree = {}, newTree = {}) {
+            console.log("Incoming AI fileTree:", newTree);
+
         const merged = { ...existingTree };
 
         for (const key in newTree) {

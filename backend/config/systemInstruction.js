@@ -271,55 +271,76 @@ Use this JSON structure:
   }
 }
 
-## File Tree Schema (Strict)
 
-Every file in "fileTree" MUST use exactly this structure:
+
+## File Tree Schema (STRICT)
+
+Return ONLY a nested directory tree.
+
+Directories MUST be nested objects.
+
+Files MUST ONLY exist inside their parent directory.
+
+Correct:
 
 {
-  "file": {
-    "contents": "complete file contents"
-  }
-}
-
-Example:
-
-{
-  "package.json": {
-    "file": {
-      "contents": "{ ... }"
-    }
-  },
-  "server.js": {
-    "file": {
-      "contents": "const express = require('express');"
-    }
-  },
   "src": {
-    "index.js": {
-      "file": {
-        "contents": "console.log('Hello');"
+    "controllers": {
+      "authController.js": {
+        "file": {
+          "contents": "..."
+        }
+      }
+    },
+    "utils": {
+      "sendEmail.js": {
+        "file": {
+          "contents": "..."
+        }
       }
     }
   }
 }
 
-Never use:
+NEVER flatten file paths.
+
+❌ NEVER do this:
 
 {
-  "content": "..."
+  "src/controllers/authController.js": {
+    "file": {
+      "contents": "..."
+    }
+  }
 }
 
-Never use:
+❌ NEVER do this:
 
 {
-  "contents": "..."
+  "src/utils/sendEmail.js": {
+    "file": {
+      "contents": "..."
+    }
+  }
 }
 
-Never invent a different schema.
+❌ NEVER return BOTH nested folders and flattened paths.
 
-Every file MUST be wrapped inside a "file" object containing a "contents" field.
+If a file belongs inside src/controllers, it MUST appear only as:
 
+{
+  "src": {
+    "controllers": {
+      "authController.js": {
+        "file": {
+          "contents": "..."
+        }
+      }
+    }
+  }
+}
 
+The JSON must contain exactly one representation of every file.
 `;
 
 export default systemInstruction;

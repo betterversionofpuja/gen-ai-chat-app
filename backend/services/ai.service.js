@@ -82,9 +82,11 @@ ${file.content}
   let response;
 
   try {
-    response = await ai.models.generateContent({
-      model: "gemini-3.5-flash",
-      contents: `
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    try {
+      response = await ai.models.generateContent({
+        model: "gemini-3.5-flash",
+        contents: `
 ${systemInstruction}
 
 ${workspaceContext}
@@ -92,8 +94,27 @@ ${workspaceContext}
 User:
 ${prompt}
 `,
-    });
-  } catch (error) {
+      });
+
+      break;
+    } catch (error) {
+      
+      if (
+        (error.status === 429 ||
+          error.status === 500 ||
+          error.status === 503) &&
+        attempt < 3
+      ) {
+        await new Promise((resolve) =>
+          setTimeout(resolve, 1000 * Math.pow(2, attempt - 1))
+        );
+        continue;
+      }
+
+      throw error;
+    }
+  }
+} catch (error) {
     console.error("Gemini API Error:", error);
 
     if (error.status === 429) {
