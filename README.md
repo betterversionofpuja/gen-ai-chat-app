@@ -56,6 +56,7 @@ Zenith isn't a bolt-on chatbot. It's **context-aware**: it reads your project's 
 - 🚫 **Redis-Backed Token Blacklisting** — logout instantly invalidates a JWT via **Redis**, closing the replay-attack window.
 - 💬 **Editable, Persistent Chat History** — edit/regenerate messages, clear chat — backed by MongoDB.
 - 🎨 **Polished, Responsive UI** — **React 19** + **Tailwind CSS v4**, resizable split panels, Markdown-rendered, syntax-highlighted AI responses.
+- 👤 **Account Management** — dedicated profile page to view account info, securely change your password, and log out.
 
 ---
 
@@ -119,7 +120,7 @@ Zenith isn't a bolt-on chatbot. It's **context-aware**: it reads your project's 
                └─────────────────┘
 ```
 
-**RAG flow:** prompt → embed (`gemini-embedding-001`) → cosine-similarity match against stored file embeddings → top-K relevant files as context → `gemini-2.5-flash` generates response → file tree merged & broadcast live to the room.
+**RAG flow:** prompt → embed (`gemini-embedding-001`) → cosine-similarity match against stored file embeddings → top-K relevant files as context → `gemini-2.5-flash` generates response (auto-falls back to `gemini-3.5-flash` on failure) → file tree merged & broadcast live to the room.
 
 ---
 
