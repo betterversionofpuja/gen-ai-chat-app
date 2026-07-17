@@ -1,8 +1,13 @@
 import { GoogleGenAI } from "@google/genai";
 import systemInstruction from "../config/systemInstruction.js";
 
+const PRIMARY_MODEL = "gemini-2.5-flash";
+const FALLBACK_MODEL = "gemini-3.5-flash";
+
 export const ai = new GoogleGenAI({
+  
   apiKey: process.env.GEMINI_API_KEY,
+  
 });
 
 /**
@@ -81,12 +86,15 @@ ${file.content}
 
   let response;
 
-  try {
-  for (let attempt = 1; attempt <= 3; attempt++) {
-    try {
-      response = await ai.models.generateContent({
-        model: "gemini-3.5-flash",
-        contents: `
+try {
+  const models = [PRIMARY_MODEL, FALLBACK_MODEL];
+
+  for (const model of models) {
+    for (let attempt = 1; attempt <= 3; attempt++) {
+      try {
+        response = await ai.models.generateContent({
+          model,
+          contents: `
 ${systemInstruction}
 
 ${workspaceContext}
@@ -94,25 +102,34 @@ ${workspaceContext}
 User:
 ${prompt}
 `,
-      });
+        });
 
-      break;
-    } catch (error) {
-      
-      if (
-        (error.status === 429 ||
+        break;
+      } catch (error) {
+        const retryable =
+          error.status === 429 ||
           error.status === 500 ||
-          error.status === 503) &&
-        attempt < 3
-      ) {
-        await new Promise((resolve) =>
-          setTimeout(resolve, 1000 * Math.pow(2, attempt - 1))
-        );
-        continue;
-      }
+          error.status === 503;
 
-      throw error;
+        if (retryable && attempt < 3) {
+          await new Promise((resolve) =>
+            setTimeout(resolve, 1000 * Math.pow(2, attempt - 1))
+          );
+          continue;
+        }
+
+        if (model === PRIMARY_MODEL) {
+          console.warn(
+            `Primary model (${PRIMARY_MODEL}) failed. Trying ${FALLBACK_MODEL}...`
+          );
+          break;
+        }
+
+        throw error;
+      }
     }
+
+    if (response) break;
   }
 } catch (error) {
     console.error("Gemini API Error:", error);
@@ -138,8 +155,19 @@ Please try again in a few moments.`,
     };
   }
 
-  const rawText = (response.text || "").trim();
-  const finishReason = response.candidates?.[0]?.finishReason;
+  if (!response) {
+  return {
+    text: `⚠️ Zenith couldn't generate a response.
+
+Please try again in a few moments.`,
+    fileTree: {},
+    buildCommand: null,
+    startCommand: null,
+  };
+}
+
+const rawText = (response.text || "").trim();
+const finishReason = response.candidates?.[0]?.finishReason;
 
   // Conversation Mode
   if (!rawText.startsWith("{") && !rawText.startsWith("```")) {

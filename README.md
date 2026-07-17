@@ -14,10 +14,11 @@
 
 ---
 
-## 🎥 Demo Video
+## 📸 Project Preview
 
-> _Add your walkthrough video link here (YouTube/Loom), or embed a thumbnail that links to it:_
-> `[![Watch the demo](./assets/thumbnail.png)](your-video-link-here)`
+<p align="center">
+  <img src="./assets/project.png" alt="Zenith Workspace Preview" width="100%">
+</p>
 
 ---
 
